@@ -1,0 +1,17 @@
+<configuration>
+    <plugins>
+        <plugin interceptor="com.luxoft.mybatis.splitter.UpdateSplitterPlugin">
+            <property name="splitExpression" value="\s*-+-\s*"/>
+        </plugin>
+    </plugins>
+    <mappers>
+        <mapper resource="mapper.xml"/>
+    </mappers>
+    <environments default="test">
+        <environment id="test">
+            <dataSource type="POOLED">
+                <property name="url" value="jdbc:derby:memory:testDb;create=true"/>
+            </dataSource>
+        </environment>
+    </environments>
+</configuration>
