@@ -17,8 +17,43 @@
  */
 package com.luxoft.mybatis.splitter;
 
+import org.apache.ibatis.io.Resources;
+import org.apache.ibatis.session.ExecutorType;
+import org.apache.ibatis.session.SqlSession;
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.apache.ibatis.session.SqlSessionFactoryBuilder;
+import org.junit.Ignore;
+import org.junit.Test;
+
+import java.io.IOException;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * @author Vitalii Tymchyshyn
  */
 public class UpdateSplitterPluginTest {
+    @Test
+    public void splitterTestSimple() throws IOException, SQLException {
+        splitterTest(ExecutorType.SIMPLE);
+    }
+
+    @Test @Ignore
+    public void splitterTestBatch() throws IOException, SQLException {
+        splitterTest(ExecutorType.BATCH);
+    }
+
+    public void splitterTest(ExecutorType execType) throws IOException, SQLException {
+        SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(
+                Resources.getResourceAsStream("configuration.xml"));
+        SqlSession sqlSession = sqlSessionFactory.openSession(execType);
+        Map<String, Object> param = new HashMap<String, Object>();
+        param.put("first", "first");
+        param.put("other", Arrays.asList("second", "third"));
+        sqlSession.insert("multy", param);
+        sqlSession.close();
+    }
 }

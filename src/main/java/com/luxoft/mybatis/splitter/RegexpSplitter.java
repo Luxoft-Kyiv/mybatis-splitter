@@ -26,7 +26,7 @@ public class RegexpSplitter implements TextSplitter {
     private final Pattern splitPattern;
 
     public RegexpSplitter(String splitPattern) {
-        this(Pattern.compile(splitPattern));
+        this(Pattern.compile(splitPattern, Pattern.MULTILINE));
     }
     public RegexpSplitter(Pattern splitPattern) {
         this.splitPattern = splitPattern;

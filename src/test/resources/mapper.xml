@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.luxoft.mybatis.splitter">
+    <update id="multy">
+        create table test(data varchar(100))
+        ---
+        insert into test values(#{first})
+        ---
+        <foreach collection="other" item="item" separator="---">
+            insert into test values(#{item})
+        </foreach>
+        ---
+        drop table test
+    </update>
+</mapper>

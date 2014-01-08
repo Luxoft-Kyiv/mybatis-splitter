@@ -17,11 +17,13 @@
  */
 package com.luxoft.mybatis.splitter;
 
+import org.apache.ibatis.builder.StaticSqlSource;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.executor.statement.StatementHandler;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ParameterMapping;
+import org.apache.ibatis.mapping.SqlSource;
 import org.apache.ibatis.plugin.*;
 import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.RowBounds;
@@ -41,6 +43,7 @@ import java.util.regex.Pattern;
 )})
 public class UpdateSplitterPlugin implements Interceptor{
     public static final String SPLIT_EXPRESSION_PROPERTY = "splitExpression";
+    public static final Pattern PARAMETER_COUNTER_REGEXP = Pattern.compile("[^?]*");
     private TextSplitter splitter;
 
     public UpdateSplitterPlugin() {
@@ -64,24 +67,32 @@ public class UpdateSplitterPlugin implements Interceptor{
         int rc = 0;
         List<ParameterMapping> fullParameterMappings = new ArrayList<ParameterMapping>(boundSql.getParameterMappings());
         for (String sqlPart: splitted) {
-            BoundSql subBoundSql = new BoundSql(configuration, sqlPart, new ArrayList<ParameterMapping>(), boundSql.getParameterObject());
-            for (ParameterMapping parameterMapping: subBoundSql.getParameterMappings()) {
-                String property = parameterMapping.getProperty();
-                if (boundSql.hasAdditionalParameter(property)) {
-                    subBoundSql.setAdditionalParameter(property, boundSql.getAdditionalParameter(property));
+            int numParams = PARAMETER_COUNTER_REGEXP.matcher(sqlPart).replaceAll("").length();
+            List<ParameterMapping> subParameterMappings = fullParameterMappings.subList(0, numParams);
+            SqlSource subSource = new StaticSqlSource(ms.getConfiguration(), sqlPart, new ArrayList<ParameterMapping>(subParameterMappings)) {
+                @Override
+                public BoundSql getBoundSql(Object parameterObject) {
+                    BoundSql subBoundSql = super.getBoundSql(parameterObject);
+                    for (ParameterMapping parameterMapping: subBoundSql.getParameterMappings()) {
+                        String property = parameterMapping.getProperty();
+                        if (boundSql.hasAdditionalParameter(property)) {
+                            subBoundSql.setAdditionalParameter(property, boundSql.getAdditionalParameter(property));
+                        }
+                    }
+                    return subBoundSql;
                 }
-            }
-            StatementHandler subHandler = new ParameterMappingSplittingStatementHandler(
-                    fullParameterMappings,
-                    configuration.newStatementHandler(
-                            (Executor) invocation.getTarget(),
-                            ms,
-                            parameterObject,
-                            RowBounds.DEFAULT,
-                            null,
-                            subBoundSql
-                    ));
-            int subRc = (Integer)invocation.getMethod().invoke(invocation.getTarget(), ms, subHandler);
+            };
+            subParameterMappings.clear();
+            MappedStatement subStatement = new MappedStatement.Builder(
+                    ms.getConfiguration(), ms.getId(), subSource, ms.getSqlCommandType())
+                    .cache(ms.getCache())
+                    .databaseId(ms.getDatabaseId())
+                    .fetchSize(ms.getFetchSize())
+                    .timeout(ms.getTimeout())
+                    .flushCacheRequired(ms.isFlushCacheRequired())
+                    .useCache(ms.isUseCache())
+                    .build();
+            int subRc = (Integer)invocation.getMethod().invoke(invocation.getTarget(), subStatement, parameterObject);
             if (rc >= 0) {
                 rc = subRc < 0 ? subRc : rc + subRc;
             }
@@ -91,12 +102,6 @@ public class UpdateSplitterPlugin implements Interceptor{
 
     @Override
     public Object plugin(Object target) {
-        if (target instanceof StatementHandler) {
-            StatementHandler statementHandler = (StatementHandler) target;
-            if (statementHandler.getParameterHandler().getParameterObject() instanceof StatementHandler) {
-                return statementHandler.getParameterHandler().getParameterObject();
-            }
-        }
         return Plugin.wrap(target, this);
     }
 
