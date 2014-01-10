@@ -31,7 +31,6 @@ import org.apache.ibatis.session.RowBounds;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.regex.Pattern;
 
 /**
  * @author Vitalii Tymchyshyn
@@ -43,11 +42,13 @@ import java.util.regex.Pattern;
 )})
 public class UpdateSplitterPlugin implements Interceptor{
     public static final String SPLIT_EXPRESSION_PROPERTY = "splitExpression";
-    public static final Pattern PARAMETER_COUNTER_REGEXP = Pattern.compile("[^?]*");
+    public static final String DELIMITER_PROPERTY = "delimiter";
+    public static final String SKIP_EMPTY_STATEMENTS_PROPERTY = "skipEmptyStatements";
     private TextSplitter splitter;
+    private boolean skipEmptyStatements = true;
 
     public UpdateSplitterPlugin() {
-        this(new RegexpSplitter("\\s*;\\s*"));
+        this(new DelimiterSplitter(";"));
     }
 
     public UpdateSplitterPlugin(TextSplitter splitter) {
@@ -63,11 +64,17 @@ public class UpdateSplitterPlugin implements Interceptor{
                 ms, parameterObject, RowBounds.DEFAULT, null, null);
         final BoundSql boundSql = handler.getBoundSql();
         final String sql = boundSql.getSql();
-        String[] splitted = splitter.split(sql);
+        List<String> splitted = splitter.split(sql);
         int rc = 0;
         List<ParameterMapping> fullParameterMappings = new ArrayList<ParameterMapping>(boundSql.getParameterMappings());
         for (String sqlPart: splitted) {
-            int numParams = PARAMETER_COUNTER_REGEXP.matcher(sqlPart).replaceAll("").length();
+            if (skipEmptyStatements && sqlPart.length() == 0) {
+                continue;
+            }
+            int numParams = 0;
+            for (int index = sqlPart.indexOf('?'); index >=0; index = sqlPart.indexOf('?', index)) {
+                numParams++;
+            }
             List<ParameterMapping> subParameterMappings = fullParameterMappings.subList(0, numParams);
             SqlSource subSource = new StaticSqlSource(ms.getConfiguration(), sqlPart, new ArrayList<ParameterMapping>(subParameterMappings)) {
                 @Override
@@ -107,9 +114,17 @@ public class UpdateSplitterPlugin implements Interceptor{
 
     @Override
     public void setProperties(Properties properties) {
-        String splitExpression = properties.getProperty(SPLIT_EXPRESSION_PROPERTY);
-        if (splitExpression != null) {
-            splitter = new RegexpSplitter(splitExpression);
+        String property = properties.getProperty(SPLIT_EXPRESSION_PROPERTY);
+        if (property != null) {
+            splitter = new RegexpSplitter(property);
+        }
+        property = properties.getProperty(DELIMITER_PROPERTY);
+        if (property != null) {
+            splitter = new DelimiterSplitter(property);
+        }
+        property = properties.getProperty(SKIP_EMPTY_STATEMENTS_PROPERTY);
+        if (property != null) {
+            skipEmptyStatements = Boolean.parseBoolean(property);
         }
     }
 }

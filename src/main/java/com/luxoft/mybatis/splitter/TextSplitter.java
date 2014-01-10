@@ -17,9 +17,11 @@
  */
 package com.luxoft.mybatis.splitter;
 
+import java.util.List;
+
 /**
  * @author Vitalii Tymchyshyn
  */
 public interface TextSplitter {
-    String[] split(String text);
+    List<String> split(String text);
 }

@@ -17,6 +17,8 @@
  */
 package com.luxoft.mybatis.splitter;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.regex.Pattern;
 
 /**
@@ -33,7 +35,7 @@ public class RegexpSplitter implements TextSplitter {
     }
 
     @Override
-    public String[] split(String text) {
-        return splitPattern.split(text);
+    public List<String> split(String text) {
+        return Arrays.asList(splitPattern.split(text));
     }
 }
