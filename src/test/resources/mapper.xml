@@ -6,13 +6,17 @@
     <update id="makeTable">
         create table test(data varchar(100))
     </update>
+    <update id="dropTable">
+        drop table test
+    </update>
     <update id="multy">
         insert into test values(#{first})
         ---
         <foreach collection="other" item="item" separator="---">
             insert into test values(#{item})
         </foreach>
-        ---
-        drop table test
     </update>
+    <select id="get" resultType="java.lang.String">
+        select * from test order by 1
+    </select>
 </mapper>
