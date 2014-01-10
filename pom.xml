@@ -7,6 +7,39 @@
     <groupId>com.luxoft.mybatis</groupId>
     <artifactId>mybatis-splitter</artifactId>
     <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <name>MyBatis SQL splitter plugin</name>
+    <description>
+        This plugin allows to send single &lt;insert&gt; as multiple database statements
+    </description>
+    <url>https://github.com/Luxoft-Kyiv/mybatis-splitter</url>
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <scm>
+        <connection>scm:git:https://github.com/Luxoft-Kyiv/mybatis-splitter.gitt</connection>
+        <developerConnection>scm:git:https://github.com/Luxoft-Kyiv/mybatis-splitter.git</developerConnection>
+        <url>https://github.com/Luxoft-Kyiv/mybatis-splitter.git</url>
+    </scm>
+    <developers>
+        <developer>
+            <id>tivv</id>
+            <name>Vitalii Tymchyshyn</name>
+            <email>vit@tym.im</email>
+            <organization>Luxoft</organization>
+            <organizationUrl>http://www.luxoft.com/</organizationUrl>
+            <url>http://blog.vit.tym.im/</url>
+        </developer>
+    </developers>
+    <parent>
+        <groupId>org.sonatype.oss</groupId>
+        <artifactId>oss-parent</artifactId>
+        <version>7</version>
+    </parent>
     <dependencies>
         <dependency>
             <groupId>org.mybatis</groupId>
