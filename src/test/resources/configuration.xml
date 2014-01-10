@@ -12,8 +12,8 @@
         <environment id="test">
             <transactionManager type="JDBC"/>
             <dataSource type="POOLED">
-                <property name="driver" value="org.apache.derby.jdbc.EmbeddedDriver"/>
-                <property name="url" value="jdbc:derby:memory:testDb;create=true"/>
+                <property name="driver" value="org.h2.Driver"/>
+                <property name="url" value="jdbc:h2:mem:test"/>
             </dataSource>
         </environment>
     </environments>

@@ -41,7 +41,7 @@ public class UpdateSplitterPluginTest {
         splitterTest(ExecutorType.SIMPLE);
     }
 
-    @Test @Ignore
+    @Test
     public void splitterTestBatch() throws IOException, SQLException {
         splitterTest(ExecutorType.BATCH);
     }
@@ -50,10 +50,13 @@ public class UpdateSplitterPluginTest {
         SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(
                 Resources.getResourceAsStream("configuration.xml"));
         SqlSession sqlSession = sqlSessionFactory.openSession(execType);
+        sqlSession.insert("makeTable");
+        sqlSession.flushStatements();
         Map<String, Object> param = new HashMap<String, Object>();
         param.put("first", "first");
         param.put("other", Arrays.asList("second", "third"));
         sqlSession.insert("multy", param);
+        sqlSession.flushStatements();
         sqlSession.close();
     }
 }

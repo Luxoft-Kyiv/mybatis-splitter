@@ -72,7 +72,7 @@ public class UpdateSplitterPlugin implements Interceptor{
                 continue;
             }
             int numParams = 0;
-            for (int index = sqlPart.indexOf('?'); index >=0; index = sqlPart.indexOf('?', index)) {
+            for (int index = sqlPart.indexOf('?'); index >=0; index = sqlPart.indexOf('?', index + 1)) {
                 numParams++;
             }
             List<ParameterMapping> subParameterMappings = fullParameterMappings.subList(0, numParams);
