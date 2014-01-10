@@ -17,7 +17,6 @@
  */
 package com.luxoft.mybatis.splitter;
 
-import org.apache.ibatis.builder.StaticSqlSource;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.executor.statement.StatementHandler;
 import org.apache.ibatis.mapping.BoundSql;
@@ -28,9 +27,7 @@ import org.apache.ibatis.plugin.*;
 import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.RowBounds;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 /**
  * @author Vitalii Tymchyshyn
@@ -46,6 +43,7 @@ public class UpdateSplitterPlugin implements Interceptor{
     public static final String SKIP_EMPTY_STATEMENTS_PROPERTY = "skipEmptyStatements";
     private TextSplitter splitter;
     private boolean skipEmptyStatements = true;
+    private Map<MappedStatement, MappedStatement> subStatements = new HashMap<MappedStatement, MappedStatement>();
 
     public UpdateSplitterPlugin() {
         this(new DelimiterSplitter(";"));
@@ -53,6 +51,11 @@ public class UpdateSplitterPlugin implements Interceptor{
 
     public UpdateSplitterPlugin(TextSplitter splitter) {
         this.splitter = splitter;
+    }
+
+    public UpdateSplitterPlugin(TextSplitter splitter, boolean skipEmptyStatements) {
+        this.splitter = splitter;
+        this.skipEmptyStatements = skipEmptyStatements;
     }
 
     @Override
@@ -75,23 +78,10 @@ public class UpdateSplitterPlugin implements Interceptor{
             for (int index = sqlPart.indexOf('?'); index >=0; index = sqlPart.indexOf('?', index + 1)) {
                 numParams++;
             }
-            List<ParameterMapping> subParameterMappings = fullParameterMappings.subList(0, numParams);
-            SqlSource subSource = new StaticSqlSource(ms.getConfiguration(), sqlPart, new ArrayList<ParameterMapping>(subParameterMappings)) {
-                @Override
-                public BoundSql getBoundSql(Object parameterObject) {
-                    BoundSql subBoundSql = super.getBoundSql(parameterObject);
-                    for (ParameterMapping parameterMapping: subBoundSql.getParameterMappings()) {
-                        String property = parameterMapping.getProperty();
-                        if (boundSql.hasAdditionalParameter(property)) {
-                            subBoundSql.setAdditionalParameter(property, boundSql.getAdditionalParameter(property));
-                        }
-                    }
-                    return subBoundSql;
-                }
-            };
-            subParameterMappings.clear();
-            MappedStatement subStatement = new MappedStatement.Builder(
-                    ms.getConfiguration(), ms.getId(), subSource, ms.getSqlCommandType())
+            MappedStatement subStatement = subStatements.get(ms);
+            if (subStatement == null) {
+                subStatement = new MappedStatement.Builder(
+                    ms.getConfiguration(), ms.getId(), new SwitchingSqlSource(configuration), ms.getSqlCommandType())
                     .cache(ms.getCache())
                     .databaseId(ms.getDatabaseId())
                     .fetchSize(ms.getFetchSize())
@@ -99,6 +89,12 @@ public class UpdateSplitterPlugin implements Interceptor{
                     .flushCacheRequired(ms.isFlushCacheRequired())
                     .useCache(ms.isUseCache())
                     .build();
+                subStatements.put(ms, subStatement);
+            }
+            List<ParameterMapping> subParameterMappings = fullParameterMappings.subList(0, numParams);
+            ((SwitchingSqlSource)subStatement.getSqlSource()).switchParams(sqlPart, boundSql,
+                    new ArrayList<ParameterMapping>(subParameterMappings));
+            subParameterMappings.clear();
             int subRc = (Integer)invocation.getMethod().invoke(invocation.getTarget(), subStatement, parameterObject);
             if (rc >= 0) {
                 rc = subRc < 0 ? subRc : rc + subRc;
@@ -109,7 +105,9 @@ public class UpdateSplitterPlugin implements Interceptor{
 
     @Override
     public Object plugin(Object target) {
-        return Plugin.wrap(target, this);
+        return target instanceof Executor
+                ? Plugin.wrap(target, new UpdateSplitterPlugin(splitter, skipEmptyStatements))
+                : target;
     }
 
     @Override
@@ -127,4 +125,5 @@ public class UpdateSplitterPlugin implements Interceptor{
             skipEmptyStatements = Boolean.parseBoolean(property);
         }
     }
+
 }

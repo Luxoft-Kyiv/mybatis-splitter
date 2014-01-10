@@ -87,15 +87,11 @@ public class UpdateSplitterPluginTest {
         expect(connection.prepareStatement("insert into test values(?)")).andReturn(statement);
         statement.setString(1, "first");
         statement.addBatch();
-        expect(connection.prepareStatement("insert into test values(?)")).andReturn(statement);
         statement.setString(1, "second");
         statement.addBatch();
-        expect(connection.prepareStatement("insert into test values(?)")).andReturn(statement);
         statement.setString(1, "third");
         statement.addBatch();
         expect(statement.executeBatch()).andStubReturn(new int[]{1});
-        statement.close();
-        statement.close();
         statement.close();
         connection.setAutoCommit(true);
         connection.rollback();
