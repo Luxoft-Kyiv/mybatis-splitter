@@ -21,7 +21,7 @@
         </license>
     </licenses>
     <scm>
-        <connection>scm:git:https://github.com/Luxoft-Kyiv/mybatis-splitter.gitt</connection>
+        <connection>scm:git:https://github.com/Luxoft-Kyiv/mybatis-splitter.git</connection>
         <developerConnection>scm:git:https://github.com/Luxoft-Kyiv/mybatis-splitter.git</developerConnection>
         <url>https://github.com/Luxoft-Kyiv/mybatis-splitter.git</url>
     </scm>
