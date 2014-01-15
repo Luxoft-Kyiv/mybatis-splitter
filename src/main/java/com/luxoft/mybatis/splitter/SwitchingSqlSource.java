@@ -18,6 +18,7 @@ package com.luxoft.mybatis.splitter;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.ParameterMapping;
 import org.apache.ibatis.mapping.SqlSource;
+import org.apache.ibatis.reflection.property.PropertyTokenizer;
 import org.apache.ibatis.session.Configuration;
 
 import java.util.List;
@@ -46,7 +47,7 @@ class SwitchingSqlSource implements SqlSource {
     public BoundSql getBoundSql(Object parameterObject) {
         BoundSql subBoundSql = new BoundSql(configuration, sql, parameterMappings, parameterObject);
         for (ParameterMapping parameterMapping: subBoundSql.getParameterMappings()) {
-            String property = parameterMapping.getProperty();
+            String property = new PropertyTokenizer(parameterMapping.getProperty()).getName();
             if (parentBoundSql.hasAdditionalParameter(property)) {
                 subBoundSql.setAdditionalParameter(property, parentBoundSql.getAdditionalParameter(property));
             }
