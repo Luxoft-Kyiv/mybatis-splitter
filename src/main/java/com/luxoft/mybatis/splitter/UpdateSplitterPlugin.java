@@ -17,16 +17,16 @@
  */
 package com.luxoft.mybatis.splitter;
 
-import org.apache.ibatis.executor.Executor;
+import org.apache.ibatis.executor.*;
 import org.apache.ibatis.executor.statement.StatementHandler;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ParameterMapping;
-import org.apache.ibatis.mapping.SqlSource;
 import org.apache.ibatis.plugin.*;
 import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.RowBounds;
 
+import java.lang.reflect.Field;
 import java.util.*;
 
 /**
@@ -41,8 +41,18 @@ public class UpdateSplitterPlugin implements Interceptor{
     public static final String SPLIT_EXPRESSION_PROPERTY = "splitExpression";
     public static final String DELIMITER_PROPERTY = "delimiter";
     public static final String SKIP_EMPTY_STATEMENTS_PROPERTY = "skipEmptyStatements";
+    public static final String REUSE_PREPARED_STATEMENTS_PROPERTY = "reusePreparedStatements";
+    public static final String REUSE_BETWEEN_FLUSHES_PROPERTY = "reuseBetweenFlushes";
+    public static final String RETAIN_EXECUTE_ORDER_PROPERTY = "retainExecuteOrder";
+    public static final String MSG_ERROR_ACCESSING_CONFIGURATION = "Can't access executor configuration field. Please set reusePreparedStatements to false";
+    public static final String MSG_ERROR_ACCESSING_DELEGATE = "Can't access executor delegate field. Please set reusePreparedStatements to false";
     private TextSplitter splitter;
     private boolean skipEmptyStatements = true;
+    private boolean reusePreparedStatements = true;
+    private boolean reuseBetweenFlushes = false;
+    private boolean retainExecuteOrder = false;
+    private Field executorConfiguration;
+    private Field cachingExecutorDelegate;
     private Map<MappedStatement, MappedStatement> subStatements = new HashMap<MappedStatement, MappedStatement>();
 
     public UpdateSplitterPlugin() {
@@ -105,9 +115,31 @@ public class UpdateSplitterPlugin implements Interceptor{
 
     @Override
     public Object plugin(Object target) {
+        if (reusePreparedStatements && target instanceof BatchExecutor) {
+            target = replaceBatchExecutor((BatchExecutor) target);
+        }
+        if (reusePreparedStatements && target instanceof CachingExecutor) {
+            try {
+                Object delegate = cachingExecutorDelegate.get(target);
+                if (delegate instanceof BatchExecutor) {
+                    cachingExecutorDelegate.set(target, replaceBatchExecutor((BatchExecutor) delegate));
+                }
+            } catch (IllegalAccessException e) {
+                throw new ExecutorException(MSG_ERROR_ACCESSING_DELEGATE, e);
+            }
+        }
         return target instanceof Executor
                 ? Plugin.wrap(target, new UpdateSplitterPlugin(splitter, skipEmptyStatements))
                 : target;
+    }
+
+    private Object replaceBatchExecutor(BatchExecutor target) {
+        try {
+            return new ReusingBatchExecutor((Configuration) executorConfiguration.get(target),
+                    target.getTransaction(), retainExecuteOrder, reuseBetweenFlushes);
+        } catch (IllegalAccessException e) {
+            throw new ExecutorException(MSG_ERROR_ACCESSING_CONFIGURATION, e);
+        }
     }
 
     @Override
@@ -120,10 +152,30 @@ public class UpdateSplitterPlugin implements Interceptor{
         if (property != null) {
             splitter = new DelimiterSplitter(property);
         }
-        property = properties.getProperty(SKIP_EMPTY_STATEMENTS_PROPERTY);
-        if (property != null) {
-            skipEmptyStatements = Boolean.parseBoolean(property);
+        skipEmptyStatements = getBooleanProperty(properties, SKIP_EMPTY_STATEMENTS_PROPERTY, skipEmptyStatements);
+        retainExecuteOrder = getBooleanProperty(properties, RETAIN_EXECUTE_ORDER_PROPERTY, retainExecuteOrder);
+        reusePreparedStatements = getBooleanProperty(properties, REUSE_PREPARED_STATEMENTS_PROPERTY, reusePreparedStatements);
+        reuseBetweenFlushes = getBooleanProperty(properties, REUSE_BETWEEN_FLUSHES_PROPERTY, reuseBetweenFlushes);
+        if (reusePreparedStatements) {
+            try {
+                executorConfiguration = BaseExecutor.class.getDeclaredField("configuration");
+                executorConfiguration.setAccessible(true);
+            } catch (Exception e) {
+                throw new ExecutorException(MSG_ERROR_ACCESSING_CONFIGURATION, e);
+            }
+            try {
+                cachingExecutorDelegate = CachingExecutor.class.getDeclaredField("delegate");
+                cachingExecutorDelegate.setAccessible(true);
+            } catch (Exception e) {
+                throw new ExecutorException(MSG_ERROR_ACCESSING_DELEGATE, e);
+            }
         }
+    }
+
+    private boolean getBooleanProperty(Properties properties, String name, boolean def) {
+        String property;
+        property = properties.getProperty(name);
+        return property != null ? Boolean.parseBoolean(property) : def;
     }
 
 }
